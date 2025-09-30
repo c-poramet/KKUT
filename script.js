@@ -475,12 +475,29 @@ class ThaiBusLogger {
         );
         
         tbody.innerHTML = sortedEntries.map(entry => {
-            const timeStr = new Date(entry.timestamp).toLocaleTimeString('th-TH', {
+            const entryDate = new Date(entry.timestamp);
+            
+            // Format full timestamp
+            const timeStr = entryDate.toLocaleTimeString('th-TH', {
                 timeZone: 'Asia/Bangkok',
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
                 hour12: false
+            });
+            
+            // Format just the time (HH:MM)
+            const justTimeStr = entryDate.toLocaleTimeString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            // Format day of week
+            const dayOfWeek = entryDate.toLocaleDateString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                weekday: 'short'
             });
             
             const statusClass = `status-${entry.status.replace('-', '-')}`;
@@ -489,6 +506,8 @@ class ThaiBusLogger {
             return `
                 <tr>
                     <td class="font-mono">${timeStr}</td>
+                    <td class="font-mono">${justTimeStr}</td>
+                    <td>${dayOfWeek}</td>
                     <td><strong>${entry.stopId || entry.stop || 'N/A'}</strong></td>
                     <td><span class="${statusClass}">${statusText}</span></td>
                     <td class="notes-cell" title="${entry.notes || ''}">${entry.notes || ''}</td>
@@ -609,10 +628,28 @@ class ThaiBusLogger {
             return;
         }
 
-        const headers = ['Timestamp', 'Route', 'Plate', 'Stop', 'Status', 'Weather', 'Notes'];
+        const headers = ['Timestamp', 'Time', 'Day', 'Route', 'Plate', 'Stop', 'Status', 'Weather', 'Notes'];
         const rows = this.entries.map(entry => {
+            const entryDate = new Date(entry.timestamp);
+            
+            // Format just the time (HH:MM)
+            const justTimeStr = entryDate.toLocaleTimeString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            });
+            
+            // Format day of week
+            const dayOfWeek = entryDate.toLocaleDateString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                weekday: 'short'
+            });
+            
             return [
                 this.formatThaiTime(entry.timestamp),
+                justTimeStr,
+                dayOfWeek,
                 entry.route,
                 entry.plate || '',
                 entry.stopId || entry.stop || '', // Use either stopId or stop field
@@ -647,9 +684,27 @@ class ThaiBusLogger {
                 if (entry.stopId && !entry.stop) entry.stop = entry.stopId;
                 else if (entry.stop && !entry.stopId) entry.stopId = entry.stop;
                 
+                const entryDate = new Date(entry.timestamp);
+                
+                // Format just the time (HH:MM)
+                const justTimeStr = entryDate.toLocaleTimeString('th-TH', {
+                    timeZone: 'Asia/Bangkok',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                });
+                
+                // Format day of week
+                const dayOfWeek = entryDate.toLocaleDateString('th-TH', {
+                    timeZone: 'Asia/Bangkok',
+                    weekday: 'short'
+                });
+                
                 return {
                     ...entry,
-                    thaiTimeFormatted: this.formatThaiTime(entry.timestamp)
+                    thaiTimeFormatted: this.formatThaiTime(entry.timestamp),
+                    timeOnly: justTimeStr,
+                    dayOfWeek: dayOfWeek
                 };
             })
         };

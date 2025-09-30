@@ -503,13 +503,26 @@ table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
-    min-width: 400px;
+    min-width: 650px;
 }
 
 th, td {
     padding: 0.5rem 0.4rem;
     text-align: left;
     border-bottom: 1px solid #e9ecef;
+    white-space: nowrap;
+}
+
+/* Day of week column */
+th:nth-child(3), td:nth-child(3) {
+    text-align: center;
+}
+
+/* Make time columns compact */
+th:nth-child(1), td:nth-child(1),
+th:nth-child(2), td:nth-child(2) {
+    width: 1%;
+    text-align: right;
 }
 
 th {
