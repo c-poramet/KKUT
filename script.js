@@ -255,6 +255,7 @@ class ThaiBusLogger {
             route: this.tripData.route,
             plate: this.tripData.plate,
             stopId: currentStopLabel, // Use the exact stop label from UI
+            stop: currentStopLabel,   // Ensure both stopId and stop fields are populated
             stopNumber: this.tripData.currentStop,
             status: stopStatus.value,
             weather: this.tripData.weather,
@@ -396,7 +397,7 @@ class ThaiBusLogger {
             return `
                 <tr>
                     <td class="font-mono">${timeStr}</td>
-                    <td><strong>${entry.stopId}</strong></td>
+                    <td><strong>${entry.stopId || entry.stop || 'N/A'}</strong></td>
                     <td><span class="${statusClass}">${statusText}</span></td>
                     <td class="notes-cell" title="${entry.notes || ''}">${entry.notes || ''}</td>
                     <td>
@@ -412,55 +413,7 @@ class ThaiBusLogger {
         }).join('');
     }
 
-    // Table Rendering
-    renderTable() {
-        const tbody = document.getElementById('data-tbody');
-        const noData = document.getElementById('no-data');
-        const count = document.getElementById('entries-count');
-        
-        // Update count
-        count.textContent = `${this.entries.length} entries`;
-        
-        if (this.entries.length === 0) {
-            tbody.innerHTML = '';
-            noData.classList.remove('hidden');
-            return;
-        }
-        
-        noData.classList.add('hidden');
-        
-        // Sort entries by timestamp (newest first)
-        const sortedEntries = [...this.entries].sort((a, b) => 
-            new Date(b.timestamp) - new Date(a.timestamp)
-        );
-        
-        tbody.innerHTML = sortedEntries.map((entry, index) => {
-            const time = new Date(entry.timestamp);
-            const timeStr = time.toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            
-            const weatherIcon = this.getWeatherIcon(entry.weather);
-            
-            return `
-                <tr>
-                    <td title="${time.toLocaleString()}">${timeStr}</td>
-                    <td><span class="route-badge route-${entry.route}">${entry.route}</span></td>
-                    <td>${entry.plate}</td>
-                    <td><strong>${entry.stop}</strong></td>
-                    <td><span class="weather-icon">${weatherIcon}</span></td>
-                    <td class="notes-cell" title="${entry.notes}">${entry.notes}</td>
-                    <td class="action-buttons">
-                        <button class="btn btn-outline btn-sm" onclick="app.editEntry('${entry.id}')" title="Edit">✏️</button>
-                        <button class="btn btn-danger btn-sm" onclick="app.deleteEntry('${entry.id}')" title="Delete">🗑️</button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
-    }
+
 
     // Entry Management
     editEntry(id) {
@@ -499,6 +452,13 @@ class ThaiBusLogger {
         // Update entry
         entry.status = document.getElementById('edit-status').value;
         entry.notes = document.getElementById('edit-notes').value.trim();
+        
+        // Ensure stop and stopId are always in sync
+        if (entry.stopId && !entry.stop) {
+            entry.stop = entry.stopId;
+        } else if (entry.stop && !entry.stopId) {
+            entry.stopId = entry.stop;
+        }
         
         this.saveToStorage();
         this.renderTable();
@@ -565,7 +525,7 @@ class ThaiBusLogger {
                 this.formatThaiTime(entry.timestamp),
                 entry.route,
                 entry.plate || '',
-                entry.stopId || '',
+                entry.stopId || entry.stop || '', // Use either stopId or stop field
                 entry.status === 'picked-up' ? 'Stopped to pick up' : 'Passed without picking up',
                 entry.weather || '',
                 entry.notes || ''
@@ -592,10 +552,16 @@ class ThaiBusLogger {
                 totalEntries: this.entries.length
             },
             tripData: this.tripData,
-            entries: this.entries.map(entry => ({
-                ...entry,
-                thaiTimeFormatted: this.formatThaiTime(entry.timestamp)
-            }))
+            entries: this.entries.map(entry => {
+                // Ensure both stop and stopId fields are consistently present
+                if (entry.stopId && !entry.stop) entry.stop = entry.stopId;
+                else if (entry.stop && !entry.stopId) entry.stopId = entry.stop;
+                
+                return {
+                    ...entry,
+                    thaiTimeFormatted: this.formatThaiTime(entry.timestamp)
+                };
+            })
         };
         
         const jsonContent = JSON.stringify(data, null, 2);
@@ -615,34 +581,7 @@ class ThaiBusLogger {
         return `thai-bus-${route.toLowerCase()}-${thaiDate}.${extension}`;
     }
 
-    exportCSV() {
-        const headers = ['Timestamp', 'Route', 'Plate', 'Stop', 'Weather', 'Notes'];
-        const rows = this.entries.map(entry => [
-            entry.timestamp,
-            entry.route,
-            entry.plate,
-            entry.stop,
-            entry.weather || '',
-            entry.notes || ''
-        ]);
-        
-        const csvContent = [headers, ...rows]
-            .map(row => row.map(field => `"${field}"`).join(','))
-            .join('\n');
-        
-        this.downloadFile(csvContent, 'bus-route-data.csv', 'text/csv');
-    }
 
-    exportJSON() {
-        const data = {
-            exportDate: new Date().toISOString(),
-            totalEntries: this.entries.length,
-            entries: this.entries
-        };
-        
-        const jsonContent = JSON.stringify(data, null, 2);
-        this.downloadFile(jsonContent, 'bus-route-data.json', 'application/json');
-    }
 
     downloadFile(content, filename, mimeType) {
         const blob = new Blob([content], { type: mimeType });
