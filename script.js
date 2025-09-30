@@ -179,6 +179,11 @@ class ThaiBusLogger {
         return thaiTime.toISOString();
     }
 
+    generateUniqueId() {
+        // Generate a unique ID using timestamp and random string
+        return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    }
+
     formatThaiTime(isoString) {
         const date = new Date(isoString);
         return date.toLocaleString('th-TH', {
@@ -336,7 +341,7 @@ class ThaiBusLogger {
 
         // Create entry with Thai timestamp
         const entry = {
-            id: Date.now() + Math.random(),
+            id: this.generateUniqueId(),
             timestamp: this.getThaiTimestamp(),
             route: this.tripData.route,
             plate: this.tripData.plate,
