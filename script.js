@@ -1,13 +1,17 @@
-// Bus Route Data Collection App
-// Author: GitHub Copilot for Poramet
-// Mobile-first field data collection tool
+// Thai Bus Route Logger
+// Developer tool for precise bus arrival data collection
+// Timezone: UTC+7 (Thailand)
 
-class BusRouteLogger {
+class ThaiBusLogger {
     constructor() {
         this.entries = [];
-        this.currentEntry = {};
-        this.stopSuggestions = new Set();
-        this.isOnline = navigator.onLine;
+        this.tripData = {
+            route: '',
+            plate: '',
+            weather: '',
+            currentStop: 1,
+            isActive: false
+        };
         
         this.init();
     }
@@ -16,110 +20,66 @@ class BusRouteLogger {
         this.loadFromStorage();
         this.setupEventListeners();
         this.startClock();
-        this.updateOnlineStatus();
         this.renderTable();
-        this.updateArrivedButton();
-        this.populateStopSuggestions();
+        this.showSetupPhase();
     }
 
     // Event Listeners
     setupEventListeners() {
-        // Setup form changes
+        // Setup Phase
         document.getElementById('route-select').addEventListener('change', () => {
-            this.updateArrivedButton();
-            this.saveSetupToStorage();
+            this.updateStartButton();
         });
         
-        document.getElementById('plate-input').addEventListener('input', () => {
-            this.updateArrivedButton();
-            this.saveSetupToStorage();
+        document.getElementById('start-trip-btn').addEventListener('click', () => {
+            this.startTrip();
         });
 
-        // Main arrived button
-        document.getElementById('arrived-btn').addEventListener('click', () => {
-            this.handleArrival();
-        });
-
-        // Entry modal
-        document.getElementById('save-entry').addEventListener('click', () => {
-            this.saveCurrentEntry();
+        // Logging Phase Controls
+        document.getElementById('skip-btn').addEventListener('click', () => {
+            this.skipStop();
         });
         
-        document.getElementById('cancel-entry').addEventListener('click', () => {
-            this.hideEntryModal();
-        });
-
-        // Edit modal
-        document.getElementById('close-edit').addEventListener('click', () => {
-            this.hideEditModal();
+        document.getElementById('back-btn').addEventListener('click', () => {
+            this.goBackStop();
         });
         
-        document.getElementById('cancel-edit').addEventListener('click', () => {
-            this.hideEditModal();
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            this.confirmResetTrip();
+        });
+
+        // Done Button
+        document.getElementById('done-btn').addEventListener('click', () => {
+            this.logCurrentStop();
+        });
+
+        // Data Export
+        document.getElementById('export-csv-btn').addEventListener('click', () => {
+            this.exportCSV();
         });
         
-        document.getElementById('update-entry').addEventListener('click', () => {
-            this.updateEntry();
+        document.getElementById('export-json-btn').addEventListener('click', () => {
+            this.exportJSON();
         });
 
-        // Data actions
-        document.getElementById('export-btn').addEventListener('click', () => {
-            this.exportData();
+        // Confirmation Dialog
+        document.getElementById('confirm-ok').addEventListener('click', () => {
+            this.handleConfirmation(true);
         });
         
-        document.getElementById('clear-btn').addEventListener('click', () => {
-            this.clearAllData();
-        });
-
-        // Stop input with suggestions
-        const stopInput = document.getElementById('stop-input');
-        stopInput.addEventListener('input', (e) => {
-            this.addStopSuggestion(e.target.value);
-        });
-
-        // Online/offline status
-        window.addEventListener('online', () => {
-            this.isOnline = true;
-            this.updateOnlineStatus();
-        });
-        
-        window.addEventListener('offline', () => {
-            this.isOnline = false;
-            this.updateOnlineStatus();
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            // Space bar or Enter to arrive (when not in input)
-            if ((e.code === 'Space' || e.code === 'Enter') && 
-                !e.target.matches('input, textarea, select') &&
-                !document.getElementById('arrived-btn').disabled) {
-                e.preventDefault();
-                this.handleArrival();
-            }
-            
-            // Escape to close modals
-            if (e.code === 'Escape') {
-                this.hideEntryModal();
-                this.hideEditModal();
-            }
+        document.getElementById('confirm-cancel').addEventListener('click', () => {
+            this.handleConfirmation(false);
         });
 
         // Click outside modal to close
-        document.getElementById('entry-modal').addEventListener('click', (e) => {
+        document.getElementById('confirm-dialog').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
-                this.hideEntryModal();
-            }
-        });
-        
-        document.getElementById('edit-modal').addEventListener('click', (e) => {
-            if (e.target === e.currentTarget) {
-                this.hideEditModal();
+                this.hideConfirmDialog();
             }
         });
     }
 
-    // Time and Status
+    // Time Display (Thai Timezone)
     startClock() {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
@@ -127,7 +87,10 @@ class BusRouteLogger {
 
     updateClock() {
         const now = new Date();
-        const timeString = now.toLocaleTimeString('en-US', {
+        // Convert to Thai timezone (UTC+7)
+        const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
+        const timeString = thaiTime.toLocaleTimeString('th-TH', {
+            timeZone: 'Asia/Bangkok',
             hour12: false,
             hour: '2-digit',
             minute: '2-digit',
@@ -136,200 +99,265 @@ class BusRouteLogger {
         document.getElementById('current-time').textContent = timeString;
     }
 
-    updateOnlineStatus() {
-        const statusEl = document.getElementById('online-status');
-        if (this.isOnline) {
-            statusEl.textContent = '📶';
-            statusEl.className = 'online';
-            statusEl.title = 'Online';
-        } else {
-            statusEl.textContent = '📵';
-            statusEl.className = 'offline';
-            statusEl.title = 'Offline';
-        }
-    }
-
-    // Setup Management
-    updateArrivedButton() {
-        const route = document.getElementById('route-select').value;
-        const plate = document.getElementById('plate-input').value.trim();
-        const arrivedBtn = document.getElementById('arrived-btn');
-        
-        if (route && plate) {
-            arrivedBtn.disabled = false;
-            arrivedBtn.style.cursor = 'pointer';
-        } else {
-            arrivedBtn.disabled = true;
-            arrivedBtn.style.cursor = 'not-allowed';
-        }
-    }
-
-    saveSetupToStorage() {
-        const setup = {
-            route: document.getElementById('route-select').value,
-            plate: document.getElementById('plate-input').value
-        };
-        localStorage.setItem('busRouteSetup', JSON.stringify(setup));
-    }
-
-    loadSetupFromStorage() {
-        const saved = localStorage.getItem('busRouteSetup');
-        if (saved) {
-            const setup = JSON.parse(saved);
-            document.getElementById('route-select').value = setup.route || '';
-            document.getElementById('plate-input').value = setup.plate || '';
-        }
-    }
-
-    // Entry Management
-    handleArrival() {
-        const route = document.getElementById('route-select').value;
-        const plate = document.getElementById('plate-input').value.trim();
-        
-        if (!route || !plate) {
-            alert('Please select route and enter plate number first!');
-            return;
-        }
-
-        // Create new entry with precise timestamp
+    getThaiTimestamp() {
         const now = new Date();
-        this.currentEntry = {
-            id: Date.now() + Math.random(), // Unique ID
-            timestamp: now.toISOString(),
+        // Ensure we get Thai timezone
+        const thaiTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Bangkok"}));
+        return thaiTime.toISOString();
+    }
+
+    // Phase Management
+    showSetupPhase() {
+        document.getElementById('setup-phase').classList.remove('hidden');
+        document.getElementById('logging-phase').classList.add('hidden');
+        this.updateTripStatus('Setup Phase');
+    }
+
+    showLoggingPhase() {
+        document.getElementById('setup-phase').classList.add('hidden');
+        document.getElementById('logging-phase').classList.remove('hidden');
+        this.updateTripStatus(`${this.tripData.route} Line - Stop ${this.tripData.currentStop}`);
+        this.updateStopTile();
+    }
+
+    updateTripStatus(text) {
+        document.getElementById('trip-status').textContent = text;
+    }
+
+    updateStartButton() {
+        const route = document.getElementById('route-select').value;
+        const startBtn = document.getElementById('start-trip-btn');
+        
+        startBtn.disabled = !route;
+    }
+
+    startTrip() {
+        const route = document.getElementById('route-select').value;
+        if (!route) return;
+
+        this.tripData = {
             route: route,
-            plate: plate.toUpperCase(),
-            stop: '',
-            weather: '',
-            notes: ''
+            plate: document.getElementById('plate-input').value.trim() || '',
+            weather: document.getElementById('weather-select').value || '',
+            currentStop: 1,
+            isActive: true
         };
 
-        // Show timestamp in modal
-        document.getElementById('entry-timestamp').textContent = 
-            now.toLocaleString('en-US', {
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
+        this.saveToStorage();
+        this.showLoggingPhase();
+    }
 
-        // Reset and show modal
-        this.resetEntryModal();
-        this.showEntryModal();
+    // Stop Management
+    updateStopTile() {
+        const stopTile = document.getElementById('stop-tile');
+        const stopLabel = document.getElementById('stop-label');
         
-        // Focus on stop input
-        setTimeout(() => {
-            document.getElementById('stop-input').focus();
-        }, 100);
+        // Generate stop ID (e.g., R1, Y15, B3, G7)
+        const stopId = this.tripData.route.charAt(0) + this.tripData.currentStop;
+        stopLabel.textContent = stopId;
+        
+        // Update tile color
+        stopTile.className = `stop-tile route-${this.tripData.route}`;
+        
+        // Update back button state
+        document.getElementById('back-btn').disabled = this.tripData.currentStop <= 1;
     }
 
-    showEntryModal() {
-        document.getElementById('entry-modal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
+    skipStop() {
+        this.tripData.currentStop++;
+        this.updateStopTile();
+        this.updateTripStatus(`${this.tripData.route} Line - Stop ${this.tripData.currentStop}`);
+        this.clearStopForm();
+        this.saveToStorage();
     }
 
-    hideEntryModal() {
-        document.getElementById('entry-modal').classList.add('hidden');
-        document.body.style.overflow = '';
-        this.currentEntry = {};
+    goBackStop() {
+        if (this.tripData.currentStop > 1) {
+            this.tripData.currentStop--;
+            this.updateStopTile();
+            this.updateTripStatus(`${this.tripData.route} Line - Stop ${this.tripData.currentStop}`);
+            this.clearStopForm();
+            this.saveToStorage();
+        }
     }
 
-    resetEntryModal() {
-        document.getElementById('stop-input').value = '';
-        document.getElementById('weather-select').value = '';
+    clearStopForm() {
+        // Clear radio buttons
+        const radios = document.querySelectorAll('input[name="stop-status"]');
+        radios.forEach(radio => radio.checked = false);
+        
+        // Clear notes
         document.getElementById('notes-input').value = '';
     }
 
-    saveCurrentEntry() {
-        const stop = document.getElementById('stop-input').value.trim();
+    // Entry Logging
+    logCurrentStop() {
+        const stopStatus = document.querySelector('input[name="stop-status"]:checked');
         
-        if (!stop) {
-            alert('Stop ID is required!');
-            document.getElementById('stop-input').focus();
+        if (!stopStatus) {
+            alert('Please select stop status (picked up or passed)');
             return;
         }
 
-        // Update current entry
-        this.currentEntry.stop = stop.toUpperCase();
-        this.currentEntry.weather = document.getElementById('weather-select').value;
-        this.currentEntry.notes = document.getElementById('notes-input').value.trim();
+        const notes = document.getElementById('notes-input').value.trim();
+        const stopId = this.tripData.route.charAt(0) + this.tripData.currentStop;
 
-        // Check for duplicate stop (warn but allow)
-        const duplicates = this.entries.filter(entry => 
-            entry.stop === this.currentEntry.stop && 
-            entry.route === this.currentEntry.route &&
-            Math.abs(new Date(entry.timestamp) - new Date(this.currentEntry.timestamp)) < 300000 // 5 minutes
-        );
-
-        if (duplicates.length > 0) {
-            if (!confirm(`Warning: Stop ${stop} was already logged recently on ${this.currentEntry.route} route. Continue anyway?`)) {
-                return;
-            }
-        }
+        // Create entry with Thai timestamp
+        const entry = {
+            id: Date.now() + Math.random(),
+            timestamp: this.getThaiTimestamp(),
+            route: this.tripData.route,
+            plate: this.tripData.plate,
+            stopId: stopId,
+            stopNumber: this.tripData.currentStop,
+            status: stopStatus.value,
+            weather: this.tripData.weather,
+            notes: notes
+        };
 
         // Add to entries
-        this.entries.push({ ...this.currentEntry });
+        this.entries.push(entry);
         
-        // Update suggestions
-        this.addStopSuggestion(this.currentEntry.stop);
+        // Move to next stop
+        this.tripData.currentStop++;
         
-        // Save and update UI
+        // Update UI
+        this.updateStopTile();
+        this.updateTripStatus(`${this.tripData.route} Line - Stop ${this.tripData.currentStop}`);
+        this.clearStopForm();
+        
+        // Save and render
         this.saveToStorage();
         this.renderTable();
-        this.hideEntryModal();
         
-        // Show success feedback
-        this.showSuccessMessage(`Entry saved: ${this.currentEntry.stop} at ${new Date(this.currentEntry.timestamp).toLocaleTimeString()}`);
+        // Show brief success indication
+        this.showSuccessMessage(`${stopId} logged: ${stopStatus.value.replace('-', ' ')}`);
     }
 
+    // UI Feedback
     showSuccessMessage(message) {
-        // Simple success notification
         const notification = document.createElement('div');
         notification.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #4CAF50;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #28a745;
             color: white;
-            padding: 1rem;
-            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
             z-index: 2000;
-            max-width: 300px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            font-size: 0.9rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         `;
         notification.textContent = message;
         document.body.appendChild(notification);
         
         setTimeout(() => {
             notification.remove();
-        }, 3000);
+        }, 2000);
     }
 
-    // Stop Suggestions
-    addStopSuggestion(stop) {
-        if (stop && stop.trim()) {
-            this.stopSuggestions.add(stop.trim().toUpperCase());
-            this.populateStopSuggestions();
+    // Confirmation Dialog
+    confirmResetTrip() {
+        this.showConfirmDialog(
+            'Reset Trip',
+            'This will end the current trip and return to setup. All unsaved progress will be lost.',
+            'reset-trip'
+        );
+    }
+
+    showConfirmDialog(title, message, action) {
+        document.getElementById('confirm-title').textContent = title;
+        document.getElementById('confirm-message').textContent = message;
+        document.getElementById('confirm-dialog').setAttribute('data-action', action);
+        document.getElementById('confirm-dialog').classList.remove('hidden');
+    }
+
+    hideConfirmDialog() {
+        document.getElementById('confirm-dialog').classList.add('hidden');
+        document.getElementById('confirm-dialog').removeAttribute('data-action');
+    }
+
+    handleConfirmation(confirmed) {
+        const action = document.getElementById('confirm-dialog').getAttribute('data-action');
+        this.hideConfirmDialog();
+
+        if (confirmed) {
+            switch (action) {
+                case 'reset-trip':
+                    this.resetTrip();
+                    break;
+            }
         }
     }
 
-    populateStopSuggestions() {
-        const datalist = document.getElementById('stop-suggestions');
-        datalist.innerHTML = '';
+    resetTrip() {
+        this.tripData = {
+            route: '',
+            plate: '',
+            weather: '',
+            currentStop: 1,
+            isActive: false
+        };
         
-        // Add unique stops from existing entries
-        const existingStops = [...new Set(this.entries.map(e => e.stop))];
-        existingStops.forEach(stop => {
-            if (stop) this.stopSuggestions.add(stop);
-        });
+        // Reset form
+        document.getElementById('route-select').value = '';
+        document.getElementById('plate-input').value = '';
+        document.getElementById('weather-select').value = '';
         
-        // Populate datalist
-        [...this.stopSuggestions].sort().forEach(stop => {
-            const option = document.createElement('option');
-            option.value = stop;
-            datalist.appendChild(option);
-        });
+        this.saveToStorage();
+        this.showSetupPhase();
+    }
+
+    // Table Rendering
+    renderTable() {
+        const tbody = document.getElementById('data-tbody');
+        const noData = document.getElementById('no-data');
+        const count = document.getElementById('entries-count');
+        
+        // Update count
+        count.textContent = `${this.entries.length} entries`;
+        
+        if (this.entries.length === 0) {
+            tbody.innerHTML = '';
+            noData.classList.remove('hidden');
+            return;
+        }
+        
+        noData.classList.add('hidden');
+        
+        // Sort entries by timestamp (newest first)
+        const sortedEntries = [...this.entries].sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        
+        tbody.innerHTML = sortedEntries.map(entry => {
+            const time = new Date(entry.timestamp);
+            const timeStr = time.toLocaleTimeString('th-TH', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            
+            const statusClass = `status-${entry.status.replace('-', '-')}`;
+            const statusText = entry.status === 'picked-up' ? 'Picked up' : 'Passed';
+            
+            return `
+                <tr>
+                    <td class="font-mono">${timeStr}</td>
+                    <td><strong>${entry.stopId}</strong></td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td class="notes-cell" title="${entry.notes}">${entry.notes}</td>
+                    <td>
+                        <button class="edit-btn" onclick="app.editEntry('${entry.id}')" title="Edit">
+                            Edit
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     }
 
     // Table Rendering
@@ -382,111 +410,106 @@ class BusRouteLogger {
         }).join('');
     }
 
-    getWeatherIcon(weather) {
-        const icons = {
-            clear: '☀️',
-            cloudy: '☁️',
-            rain: '🌧️',
-            storm: '⛈️',
-            fog: '🌫️'
-        };
-        return icons[weather] || '';
-    }
-
-    // Edit Entry
+    // Entry Management
     editEntry(id) {
         const entry = this.entries.find(e => e.id == id);
         if (!entry) return;
         
-        // Populate edit form
-        const timestamp = new Date(entry.timestamp);
-        document.getElementById('edit-timestamp').value = 
-            timestamp.toISOString().slice(0, -1); // Remove Z for datetime-local
-        document.getElementById('edit-route').value = entry.route;
-        document.getElementById('edit-plate').value = entry.plate;
-        document.getElementById('edit-stop').value = entry.stop;
-        document.getElementById('edit-weather').value = entry.weather;
-        document.getElementById('edit-notes').value = entry.notes;
-        
-        // Store current editing ID
-        this.editingId = id;
-        
-        // Show modal
-        this.showEditModal();
-    }
-
-    showEditModal() {
-        document.getElementById('edit-modal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
-    hideEditModal() {
-        document.getElementById('edit-modal').classList.add('hidden');
-        document.body.style.overflow = '';
-        this.editingId = null;
-    }
-
-    updateEntry() {
-        if (!this.editingId) return;
-        
-        const entryIndex = this.entries.findIndex(e => e.id == this.editingId);
-        if (entryIndex === -1) return;
-        
-        const stop = document.getElementById('edit-stop').value.trim();
-        if (!stop) {
-            alert('Stop ID is required!');
-            return;
+        // Simple prompt-based editing
+        const newNotes = prompt('Edit notes:', entry.notes);
+        if (newNotes !== null) {
+            entry.notes = newNotes.trim();
+            this.saveToStorage();
+            this.renderTable();
+            this.showSuccessMessage('Entry updated');
         }
-        
-        // Update entry
-        const timestamp = new Date(document.getElementById('edit-timestamp').value);
-        this.entries[entryIndex] = {
-            ...this.entries[entryIndex],
-            timestamp: timestamp.toISOString(),
-            route: document.getElementById('edit-route').value,
-            plate: document.getElementById('edit-plate').value.toUpperCase(),
-            stop: stop.toUpperCase(),
-            weather: document.getElementById('edit-weather').value,
-            notes: document.getElementById('edit-notes').value.trim()
-        };
-        
-        // Update suggestions
-        this.addStopSuggestion(this.entries[entryIndex].stop);
-        
-        // Save and update
-        this.saveToStorage();
-        this.renderTable();
-        this.hideEditModal();
-        
-        this.showSuccessMessage('Entry updated successfully!');
-    }
-
-    // Delete Entry
-    deleteEntry(id) {
-        if (!confirm('Are you sure you want to delete this entry?')) return;
-        
-        this.entries = this.entries.filter(e => e.id != id);
-        this.saveToStorage();
-        this.renderTable();
-        
-        this.showSuccessMessage('Entry deleted successfully!');
     }
 
     // Data Export
-    exportData() {
+    exportCSV() {
         if (this.entries.length === 0) {
-            alert('No data to export!');
+            alert('No data to export');
             return;
         }
+
+        const headers = ['Timestamp (Thai)', 'Route', 'Plate', 'Stop ID', 'Stop Number', 'Status', 'Weather', 'Notes'];
+        const rows = this.entries.map(entry => {
+            // Format timestamp for Thai timezone display
+            const thaiTime = new Date(entry.timestamp);
+            const formattedTime = thaiTime.toLocaleString('th-TH', {
+                timeZone: 'Asia/Bangkok',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            });
+            
+            return [
+                formattedTime,
+                entry.route,
+                entry.plate || '',
+                entry.stopId,
+                entry.stopNumber,
+                entry.status,
+                entry.weather || '',
+                entry.notes || ''
+            ];
+        });
         
-        // Create export options
-        const format = prompt('Export format:\n1. CSV\n2. JSON\n\nEnter 1 or 2:', '1');
+        const csvContent = [headers, ...rows]
+            .map(row => row.map(field => `"${field}"`).join(','))
+            .join('\n');
         
-        if (format === '1') {
-            this.exportCSV();
-        } else if (format === '2') {
-            this.exportJSON();
+        this.downloadFile(csvContent, this.getExportFilename('csv'), 'text/csv');
+    }
+
+    exportJSON() {
+        if (this.entries.length === 0) {
+            alert('No data to export');
+            return;
         }
+
+        const data = {
+            exportMetadata: {
+                exportDate: this.getThaiTimestamp(),
+                timezone: 'Asia/Bangkok (UTC+7)',
+                totalEntries: this.entries.length
+            },
+            tripData: this.tripData,
+            entries: this.entries.map(entry => ({
+                ...entry,
+                // Include formatted Thai time for readability
+                thaiTimeFormatted: new Date(entry.timestamp).toLocaleString('th-TH', {
+                    timeZone: 'Asia/Bangkok',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                })
+            }))
+        };
+        
+        const jsonContent = JSON.stringify(data, null, 2);
+        this.downloadFile(jsonContent, this.getExportFilename('json'), 'application/json');
+    }
+
+    getExportFilename(extension) {
+        const now = new Date();
+        const thaiDate = now.toLocaleDateString('th-TH', {
+            timeZone: 'Asia/Bangkok',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        }).replace(/\//g, '-');
+        
+        const route = this.tripData.route || 'unknown';
+        return `thai-bus-${route.toLowerCase()}-${thaiDate}.${extension}`;
     }
 
     exportCSV() {
@@ -530,68 +553,72 @@ class BusRouteLogger {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        this.showSuccessMessage(`Data exported as ${filename}`);
+        this.showSuccessMessage(`Exported: ${filename}`);
     }
 
-    // Data Management
-    clearAllData() {
-        if (!confirm('Are you sure you want to clear ALL data? This cannot be undone!')) return;
-        
-        this.entries = [];
-        this.saveToStorage();
-        this.renderTable();
-        
-        this.showSuccessMessage('All data cleared!');
-    }
-
-    // Storage
+    // Storage Management
     saveToStorage() {
         try {
-            localStorage.setItem('busRouteEntries', JSON.stringify(this.entries));
-            localStorage.setItem('busRouteStops', JSON.stringify([...this.stopSuggestions]));
+            localStorage.setItem('thaiBusEntries', JSON.stringify(this.entries));
+            localStorage.setItem('thaiBusTripData', JSON.stringify(this.tripData));
         } catch (e) {
             console.error('Failed to save to storage:', e);
-            alert('Warning: Failed to save data locally. Your data may be lost if you close the app.');
+            alert('Warning: Failed to save data locally');
         }
     }
 
     loadFromStorage() {
         try {
-            const entries = localStorage.getItem('busRouteEntries');
+            // Load entries
+            const entries = localStorage.getItem('thaiBusEntries');
             if (entries) {
                 this.entries = JSON.parse(entries);
             }
             
-            const stops = localStorage.getItem('busRouteStops');
-            if (stops) {
-                this.stopSuggestions = new Set(JSON.parse(stops));
+            // Load trip data
+            const tripData = localStorage.getItem('thaiBusTripData');
+            if (tripData) {
+                const saved = JSON.parse(tripData);
+                this.tripData = { ...this.tripData, ...saved };
+                
+                // Restore setup form if trip is active
+                if (this.tripData.isActive) {
+                    document.getElementById('route-select').value = this.tripData.route;
+                    document.getElementById('plate-input').value = this.tripData.plate;
+                    document.getElementById('weather-select').value = this.tripData.weather;
+                    this.showLoggingPhase();
+                } else {
+                    // Restore setup form values but stay in setup phase
+                    document.getElementById('route-select').value = this.tripData.route || '';
+                    document.getElementById('plate-input').value = this.tripData.plate || '';
+                    document.getElementById('weather-select').value = this.tripData.weather || '';
+                }
             }
-            
-            // Load setup
-            this.loadSetupFromStorage();
         } catch (e) {
             console.error('Failed to load from storage:', e);
             this.entries = [];
-            this.stopSuggestions = new Set();
+            this.tripData = {
+                route: '',
+                plate: '',
+                weather: '',
+                currentStop: 1,
+                isActive: false
+            };
         }
     }
 }
 
-// Initialize app
+// Initialize Thai Bus Logger
 let app;
 document.addEventListener('DOMContentLoaded', () => {
-    app = new BusRouteLogger();
+    app = new ThaiBusLogger();
 });
 
-// Service Worker registration for offline capability
+// Service Worker for offline capability
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
-            .then(registration => {
-                console.log('SW registered: ', registration);
-            })
-            .catch(registrationError => {
-                console.log('SW registration failed: ', registrationError);
-            });
+            .then(() => console.log('Service Worker registered'))
+            .catch(err => console.log('Service Worker registration failed:', err));
     });
 }
