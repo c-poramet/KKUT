@@ -6,30 +6,208 @@ class BusRouteLogger {
     constructor() {
         this.entries = [];
         this.currentEntry = {};
-        this.stopSuggestions = new Set();
         this.isOnline = navigator.onLine;
+        this.pickers = {};
+        this.selectedValues = {
+            route: '',
+            stopLetter: '',
+            stopNumber: '',
+            weather: '',
+            editRoute: '',
+            editStopLetter: '',
+            editStopNumber: '',
+            editWeather: ''
+        };
         
         this.init();
     }
 
     init() {
         this.loadFromStorage();
+        this.setupScrollPickers();
         this.setupEventListeners();
         this.startClock();
         this.updateOnlineStatus();
         this.renderTable();
         this.updateArrivedButton();
-        this.populateStopSuggestions();
+    }
+
+    // Scroll Picker Setup
+    setupScrollPickers() {
+        // Main route picker
+        this.setupPicker('route-list', 'route', (value) => {
+            this.selectedValues.route = value;
+            this.updateArrivedButton();
+            this.saveSetupToStorage();
+        });
+
+        // Stop pickers - generate numbers 1-30
+        this.populateStopNumbers('stop-number-list');
+        this.setupPicker('stop-letter-list', 'stopLetter', (value) => {
+            this.selectedValues.stopLetter = value;
+        });
+        this.setupPicker('stop-number-list', 'stopNumber', (value) => {
+            this.selectedValues.stopNumber = value;
+        });
+
+        // Weather picker
+        this.setupPicker('weather-list', 'weather', (value) => {
+            this.selectedValues.weather = value;
+        });
+
+        // Edit modal pickers
+        this.populateStopNumbers('edit-stop-number-list');
+        this.setupPicker('edit-route-list', 'editRoute', (value) => {
+            this.selectedValues.editRoute = value;
+        });
+        this.setupPicker('edit-stop-letter-list', 'editStopLetter', (value) => {
+            this.selectedValues.editStopLetter = value;
+        });
+        this.setupPicker('edit-stop-number-list', 'editStopNumber', (value) => {
+            this.selectedValues.editStopNumber = value;
+        });
+        this.setupPicker('edit-weather-list', 'editWeather', (value) => {
+            this.selectedValues.editWeather = value;
+        });
+    }
+
+    populateStopNumbers(listId) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+        
+        // Clear existing numbers except first item (which might be empty)
+        const firstItem = list.firstElementChild;
+        list.innerHTML = '';
+        if (firstItem && firstItem.dataset.value === '') {
+            list.appendChild(firstItem);
+        }
+        
+        // Add numbers 1-30
+        for (let i = 1; i <= 30; i++) {
+            const item = document.createElement('div');
+            item.className = 'picker-item';
+            item.dataset.value = i.toString();
+            item.textContent = i.toString();
+            list.appendChild(item);
+        }
+    }
+
+    setupPicker(listId, valueKey, onChange) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+
+        const container = list.parentElement;
+        
+        // Handle scroll events to snap to center
+        let scrollTimeout;
+        list.addEventListener('scroll', () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                this.snapToCenter(list, valueKey, onChange);
+            }, 150);
+        });
+
+        // Handle touch/click events
+        list.addEventListener('click', (e) => {
+            if (e.target.classList.contains('picker-item')) {
+                this.selectPickerItem(list, e.target, valueKey, onChange);
+            }
+        });
+
+        // Initial selection
+        const firstItem = list.querySelector('.picker-item[data-value]:not([data-value=\"\"])');
+        if (firstItem && !this.selectedValues[valueKey]) {
+            this.selectPickerItem(list, firstItem, valueKey, onChange, false);
+        }
+    }
+
+    selectPickerItem(list, item, valueKey, onChange, scroll = true) {
+        // Remove previous selection
+        list.querySelectorAll('.picker-item').forEach(i => {
+            i.classList.remove('selected', 'snap-center');
+        });
+
+        // Select new item
+        item.classList.add('selected');
+        this.selectedValues[valueKey] = item.dataset.value;
+
+        // Scroll to center the item
+        if (scroll) {
+            const itemTop = item.offsetTop;
+            const listHeight = list.clientHeight;
+            const itemHeight = item.offsetHeight;
+            const scrollTop = itemTop - (listHeight / 2) + (itemHeight / 2);
+            
+            list.scrollTo({
+                top: scrollTop,
+                behavior: 'smooth'
+            });
+        }
+
+        if (onChange) {
+            onChange(item.dataset.value);
+        }
+    }
+
+    snapToCenter(list, valueKey, onChange) {
+        const listRect = list.getBoundingClientRect();
+        const centerY = listRect.top + listRect.height / 2;
+        
+        let closestItem = null;
+        let closestDistance = Infinity;
+        
+        list.querySelectorAll('.picker-item').forEach(item => {
+            const itemRect = item.getBoundingClientRect();
+            const itemCenterY = itemRect.top + itemRect.height / 2;
+            const distance = Math.abs(centerY - itemCenterY);
+            
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestItem = item;
+            }
+        });
+        
+        if (closestItem) {
+            this.selectPickerItem(list, closestItem, valueKey, onChange, true);
+        }
+    }
+
+    getPickerValue(listId) {
+        const list = document.getElementById(listId);
+        const selected = list?.querySelector('.picker-item.selected');
+        return selected?.dataset.value || '';
+    }
+
+    setPickerValue(listId, value) {
+        const list = document.getElementById(listId);
+        if (!list) return;
+        
+        const item = list.querySelector(`[data-value="${value}"]`);
+        if (item) {
+            const valueKey = this.getValueKeyForList(listId);
+            if (valueKey) {
+                this.selectPickerItem(list, item, valueKey, null, true);
+            }
+        }
+    }
+
+    getValueKeyForList(listId) {
+        const mapping = {
+            'route-list': 'route',
+            'stop-letter-list': 'stopLetter',
+            'stop-number-list': 'stopNumber',
+            'weather-list': 'weather',
+            'edit-route-list': 'editRoute',
+            'edit-stop-letter-list': 'editStopLetter',
+            'edit-stop-number-list': 'editStopNumber',
+            'edit-weather-list': 'editWeather'
+        };
+        return mapping[listId];
     }
 
     // Event Listeners
     setupEventListeners() {
-        // Setup form changes
-        document.getElementById('route-select').addEventListener('change', () => {
-            this.updateArrivedButton();
-            this.saveSetupToStorage();
-        });
-        
+        // Plate input
         document.getElementById('plate-input').addEventListener('input', () => {
             this.updateArrivedButton();
             this.saveSetupToStorage();
@@ -151,7 +329,7 @@ class BusRouteLogger {
 
     // Setup Management
     updateArrivedButton() {
-        const route = document.getElementById('route-select').value;
+        const route = this.selectedValues.route;
         const plate = document.getElementById('plate-input').value.trim();
         const arrivedBtn = document.getElementById('arrived-btn');
         
@@ -166,7 +344,7 @@ class BusRouteLogger {
 
     saveSetupToStorage() {
         const setup = {
-            route: document.getElementById('route-select').value,
+            route: this.selectedValues.route,
             plate: document.getElementById('plate-input').value
         };
         localStorage.setItem('busRouteSetup', JSON.stringify(setup));
@@ -176,14 +354,16 @@ class BusRouteLogger {
         const saved = localStorage.getItem('busRouteSetup');
         if (saved) {
             const setup = JSON.parse(saved);
-            document.getElementById('route-select').value = setup.route || '';
+            if (setup.route) {
+                this.setPickerValue('route-list', setup.route);
+            }
             document.getElementById('plate-input').value = setup.plate || '';
         }
     }
 
     // Entry Management
     handleArrival() {
-        const route = document.getElementById('route-select').value;
+        const route = this.selectedValues.route;
         const plate = document.getElementById('plate-input').value.trim();
         
         if (!route || !plate) {
@@ -217,11 +397,6 @@ class BusRouteLogger {
         // Reset and show modal
         this.resetEntryModal();
         this.showEntryModal();
-        
-        // Focus on stop input
-        setTimeout(() => {
-            document.getElementById('stop-input').focus();
-        }, 100);
     }
 
     showEntryModal() {
@@ -236,23 +411,27 @@ class BusRouteLogger {
     }
 
     resetEntryModal() {
-        document.getElementById('stop-input').value = '';
-        document.getElementById('weather-select').value = '';
+        // Reset stop pickers to first valid selection
+        this.setPickerValue('stop-letter-list', 'B');
+        this.setPickerValue('stop-number-list', '1');
+        this.setPickerValue('weather-list', '');
         document.getElementById('notes-input').value = '';
     }
 
     saveCurrentEntry() {
-        const stop = document.getElementById('stop-input').value.trim();
+        const stopLetter = this.selectedValues.stopLetter;
+        const stopNumber = this.selectedValues.stopNumber;
         
-        if (!stop) {
-            alert('Stop ID is required!');
-            document.getElementById('stop-input').focus();
+        if (!stopLetter || !stopNumber) {
+            alert('Please select both stop letter and number!');
             return;
         }
 
+        const stop = stopLetter + stopNumber;
+
         // Update current entry
-        this.currentEntry.stop = stop.toUpperCase();
-        this.currentEntry.weather = document.getElementById('weather-select').value;
+        this.currentEntry.stop = stop;
+        this.currentEntry.weather = this.selectedValues.weather;
         this.currentEntry.notes = document.getElementById('notes-input').value.trim();
 
         // Check for duplicate stop (warn but allow)
@@ -306,30 +485,17 @@ class BusRouteLogger {
         }, 3000);
     }
 
-    // Stop Suggestions
-    addStopSuggestion(stop) {
-        if (stop && stop.trim()) {
-            this.stopSuggestions.add(stop.trim().toUpperCase());
-            this.populateStopSuggestions();
-        }
+    // Helper Methods
+    getCurrentStopId() {
+        const letter = this.selectedValues.stopLetter;
+        const number = this.selectedValues.stopNumber;
+        return (letter && number) ? letter + number : '';
     }
 
-    populateStopSuggestions() {
-        const datalist = document.getElementById('stop-suggestions');
-        datalist.innerHTML = '';
-        
-        // Add unique stops from existing entries
-        const existingStops = [...new Set(this.entries.map(e => e.stop))];
-        existingStops.forEach(stop => {
-            if (stop) this.stopSuggestions.add(stop);
-        });
-        
-        // Populate datalist
-        [...this.stopSuggestions].sort().forEach(stop => {
-            const option = document.createElement('option');
-            option.value = stop;
-            datalist.appendChild(option);
-        });
+    getCurrentEditStopId() {
+        const letter = this.selectedValues.editStopLetter;
+        const number = this.selectedValues.editStopNumber;
+        return (letter && number) ? letter + number : '';
     }
 
     // Table Rendering
@@ -402,10 +568,20 @@ class BusRouteLogger {
         const timestamp = new Date(entry.timestamp);
         document.getElementById('edit-timestamp').value = 
             timestamp.toISOString().slice(0, -1); // Remove Z for datetime-local
-        document.getElementById('edit-route').value = entry.route;
+        
+        // Set picker values
+        this.setPickerValue('edit-route-list', entry.route);
+        
+        // Parse stop ID (e.g., "B15" -> letter="B", number="15")
+        const stopMatch = entry.stop.match(/^([A-Z])(\d+)$/);
+        if (stopMatch) {
+            this.setPickerValue('edit-stop-letter-list', stopMatch[1]);
+            this.setPickerValue('edit-stop-number-list', stopMatch[2]);
+        }
+        
+        this.setPickerValue('edit-weather-list', entry.weather);
+        
         document.getElementById('edit-plate').value = entry.plate;
-        document.getElementById('edit-stop').value = entry.stop;
-        document.getElementById('edit-weather').value = entry.weather;
         document.getElementById('edit-notes').value = entry.notes;
         
         // Store current editing ID
@@ -432,26 +608,27 @@ class BusRouteLogger {
         const entryIndex = this.entries.findIndex(e => e.id == this.editingId);
         if (entryIndex === -1) return;
         
-        const stop = document.getElementById('edit-stop').value.trim();
-        if (!stop) {
-            alert('Stop ID is required!');
+        const stopLetter = this.selectedValues.editStopLetter;
+        const stopNumber = this.selectedValues.editStopNumber;
+        
+        if (!stopLetter || !stopNumber) {
+            alert('Please select both stop letter and number!');
             return;
         }
+
+        const stop = stopLetter + stopNumber;
         
         // Update entry
         const timestamp = new Date(document.getElementById('edit-timestamp').value);
         this.entries[entryIndex] = {
             ...this.entries[entryIndex],
             timestamp: timestamp.toISOString(),
-            route: document.getElementById('edit-route').value,
+            route: this.selectedValues.editRoute,
             plate: document.getElementById('edit-plate').value.toUpperCase(),
-            stop: stop.toUpperCase(),
-            weather: document.getElementById('edit-weather').value,
+            stop: stop,
+            weather: this.selectedValues.editWeather,
             notes: document.getElementById('edit-notes').value.trim()
         };
-        
-        // Update suggestions
-        this.addStopSuggestion(this.entries[entryIndex].stop);
         
         // Save and update
         this.saveToStorage();
@@ -548,7 +725,6 @@ class BusRouteLogger {
     saveToStorage() {
         try {
             localStorage.setItem('busRouteEntries', JSON.stringify(this.entries));
-            localStorage.setItem('busRouteStops', JSON.stringify([...this.stopSuggestions]));
         } catch (e) {
             console.error('Failed to save to storage:', e);
             alert('Warning: Failed to save data locally. Your data may be lost if you close the app.');
@@ -562,17 +738,11 @@ class BusRouteLogger {
                 this.entries = JSON.parse(entries);
             }
             
-            const stops = localStorage.getItem('busRouteStops');
-            if (stops) {
-                this.stopSuggestions = new Set(JSON.parse(stops));
-            }
-            
             // Load setup
             this.loadSetupFromStorage();
         } catch (e) {
             console.error('Failed to load from storage:', e);
             this.entries = [];
-            this.stopSuggestions = new Set();
         }
     }
 }
