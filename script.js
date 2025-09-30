@@ -86,10 +86,7 @@ class ThaiBusLogger {
     }
 
     updateClock() {
-        const now = new Date();
-        // Convert to Thai timezone (UTC+7)
-        const thaiTime = new Date(now.getTime() + (7 * 60 * 60 * 1000));
-        const timeString = thaiTime.toLocaleTimeString('th-TH', {
+        const timeString = new Date().toLocaleTimeString('th-TH', {
             timeZone: 'Asia/Bangkok',
             hour12: false,
             hour: '2-digit',
@@ -100,10 +97,24 @@ class ThaiBusLogger {
     }
 
     getThaiTimestamp() {
+        // Get current time in Thai timezone and return ISO string
         const now = new Date();
-        // Ensure we get Thai timezone
         const thaiTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Bangkok"}));
         return thaiTime.toISOString();
+    }
+
+    formatThaiTime(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleString('th-TH', {
+            timeZone: 'Asia/Bangkok',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        });
     }
 
     // Phase Management
@@ -333,8 +344,8 @@ class ThaiBusLogger {
         );
         
         tbody.innerHTML = sortedEntries.map(entry => {
-            const time = new Date(entry.timestamp);
-            const timeStr = time.toLocaleTimeString('th-TH', {
+            const timeStr = new Date(entry.timestamp).toLocaleTimeString('th-TH', {
+                timeZone: 'Asia/Bangkok',
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit',
@@ -347,9 +358,9 @@ class ThaiBusLogger {
             return `
                 <tr>
                     <td class="font-mono">${timeStr}</td>
-                    <td><strong>${entry.stopId}</strong></td>
+                    <td><strong>${entry.stopId || 'N/A'}</strong></td>
                     <td><span class="${statusClass}">${statusText}</span></td>
-                    <td class="notes-cell" title="${entry.notes}">${entry.notes}</td>
+                    <td class="notes-cell" title="${entry.notes || ''}">${entry.notes || ''}</td>
                     <td>
                         <button class="edit-btn" onclick="app.editEntry('${entry.id}')" title="Edit">
                             Edit
@@ -432,28 +443,14 @@ class ThaiBusLogger {
             return;
         }
 
-        const headers = ['Timestamp (Thai)', 'Route', 'Plate', 'Stop ID', 'Stop Number', 'Status', 'Weather', 'Notes'];
+        const headers = ['Timestamp', 'Route', 'Plate', 'Stop', 'Status', 'Weather', 'Notes'];
         const rows = this.entries.map(entry => {
-            // Format timestamp for Thai timezone display
-            const thaiTime = new Date(entry.timestamp);
-            const formattedTime = thaiTime.toLocaleString('th-TH', {
-                timeZone: 'Asia/Bangkok',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
-            
             return [
-                formattedTime,
+                this.formatThaiTime(entry.timestamp),
                 entry.route,
                 entry.plate || '',
-                entry.stopId,
-                entry.stopNumber,
-                entry.status,
+                entry.stopId || '',
+                entry.status === 'picked-up' ? 'Stopped to pick up' : 'Passed without picking up',
                 entry.weather || '',
                 entry.notes || ''
             ];
@@ -474,24 +471,14 @@ class ThaiBusLogger {
 
         const data = {
             exportMetadata: {
-                exportDate: this.getThaiTimestamp(),
+                exportDate: this.formatThaiTime(this.getThaiTimestamp()),
                 timezone: 'Asia/Bangkok (UTC+7)',
                 totalEntries: this.entries.length
             },
             tripData: this.tripData,
             entries: this.entries.map(entry => ({
                 ...entry,
-                // Include formatted Thai time for readability
-                thaiTimeFormatted: new Date(entry.timestamp).toLocaleString('th-TH', {
-                    timeZone: 'Asia/Bangkok',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                    hour12: false
-                })
+                thaiTimeFormatted: this.formatThaiTime(entry.timestamp)
             }))
         };
         
