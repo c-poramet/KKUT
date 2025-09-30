@@ -202,6 +202,11 @@ class ThaiBusLogger {
         document.getElementById('back-btn').disabled = this.tripData.currentStop <= 1;
     }
 
+    // Get current stop label for logging
+    getCurrentStopLabel() {
+        return document.getElementById('stop-label').textContent;
+    }
+
     skipStop() {
         this.tripData.currentStop++;
         this.updateStopTile();
@@ -239,7 +244,9 @@ class ThaiBusLogger {
         }
 
         const notes = document.getElementById('notes-input').value.trim();
-        const stopId = this.tripData.route.charAt(0) + this.tripData.currentStop;
+        
+        // Extract the current stop label exactly as displayed in the UI
+        const currentStopLabel = document.getElementById('stop-label').textContent;
 
         // Create entry with Thai timestamp
         const entry = {
@@ -247,7 +254,7 @@ class ThaiBusLogger {
             timestamp: this.getThaiTimestamp(),
             route: this.tripData.route,
             plate: this.tripData.plate,
-            stopId: stopId,
+            stopId: currentStopLabel, // Use the exact stop label from UI
             stopNumber: this.tripData.currentStop,
             status: stopStatus.value,
             weather: this.tripData.weather,
@@ -270,7 +277,7 @@ class ThaiBusLogger {
         this.renderTable();
         
         // Show brief success indication
-        this.showSuccessMessage(`${stopId} logged: ${stopStatus.value.replace('-', ' ')}`);
+        this.showSuccessMessage(`${currentStopLabel} logged: ${stopStatus.value.replace('-', ' ')}`);
     }
 
     // UI Feedback
@@ -389,7 +396,7 @@ class ThaiBusLogger {
             return `
                 <tr>
                     <td class="font-mono">${timeStr}</td>
-                    <td><strong>${entry.stopId || 'N/A'}</strong></td>
+                    <td><strong>${entry.stopId}</strong></td>
                     <td><span class="${statusClass}">${statusText}</span></td>
                     <td class="notes-cell" title="${entry.notes || ''}">${entry.notes || ''}</td>
                     <td>
