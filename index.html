@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bus Route Data Collection</title>
+    <title>KKU Bus Route Logger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2196F3">
@@ -12,86 +12,90 @@
     <div id="app">
         <!-- Header -->
         <header>
-            <h1>🚌 Bus Route Logger</h1>
+            <h1>KKU Bus</h1>
             <div class="status-bar">
                 <span id="current-time" class="time"></span>
-                <span id="online-status" class="online">📶</span>
+                <span id="trip-status" class="trip-info"></span>
             </div>
         </header>
 
-        <!-- Setup Section -->
-        <section id="setup" class="card">
-            <h2>Trip Setup</h2>
-            <div class="form-group">
-                <label for="route-select">Route Color *</label>
-                <select id="route-select" required>
-                    <option value="">Select Route</option>
-                    <option value="Red" data-color="#f44336">🔴 Red Line</option>
-                    <option value="Yellow" data-color="#ffeb3b">🟡 Yellow Line</option>
-                    <option value="Blue" data-color="#2196f3">🔵 Blue Line</option>
-                    <option value="Green" data-color="#4caf50">🟢 Green Line</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="plate-input">Bus Plate Number *</label>
-                <input type="text" id="plate-input" placeholder="e.g., ABC-1234" required>
-            </div>
-        </section>
-
-        <!-- Main Action Button -->
-        <section id="action-section" class="card">
-            <button id="arrived-btn" class="arrived-btn" disabled>
-                <span class="btn-text">🚏 ARRIVED</span>
-                <span class="btn-subtext">Press when bus stops</span>
-            </button>
-        </section>
-
-        <!-- Quick Entry Modal -->
-        <div id="entry-modal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Log Entry</h3>
-                    <span id="entry-timestamp" class="timestamp"></span>
+        <!-- Setup Phase -->
+        <section id="setup-phase" class="phase">
+            <div class="card">
+                <h2>Trip Setup</h2>
+                
+                <div class="form-group">
+                    <label>Route Color *</label>
+                    <div class="route-buttons">
+                        <button type="button" class="route-btn route-Red" data-route="Red">Red</button>
+                        <button type="button" class="route-btn route-Yellow" data-route="Yellow">Yellow</button>
+                        <button type="button" class="route-btn route-Blue" data-route="Blue">Blue</button>
+                        <button type="button" class="route-btn route-Green" data-route="Green">Green</button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="stop-input">Stop ID *</label>
-                    <input type="text" id="stop-input" placeholder="Enter or search stop ID" list="stop-suggestions">
-                    <datalist id="stop-suggestions"></datalist>
+                    <label for="plate-input">Bus Plate Number</label>
+                    <input type="text" id="plate-input" placeholder="e.g., กท-1234">
                 </div>
                 
                 <div class="form-group">
                     <label for="weather-select">Weather</label>
                     <select id="weather-select">
-                        <option value="">Not specified</option>
-                        <option value="clear">☀️ Clear</option>
+                        <option value="">Select weather</option>
+                        <option value="sunny">🌞 Sunny</option>
                         <option value="cloudy">☁️ Cloudy</option>
-                        <option value="rain">🌧️ Rain</option>
-                        <option value="storm">⛈️ Storm</option>
-                        <option value="fog">🌫️ Fog</option>
+                        <option value="rainy">🌧️ Rainy</option>
+                        <option value="stormy">⛈️ Stormy</option>
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label for="notes-input">Notes</label>
-                    <textarea id="notes-input" placeholder="Optional notes..." rows="2"></textarea>
-                </div>
-                
-                <div class="modal-actions">
-                    <button id="cancel-entry" class="btn btn-secondary">Cancel</button>
-                    <button id="save-entry" class="btn btn-primary">Save Entry</button>
+                <button id="start-trip-btn" class="btn btn-primary" disabled>Start Trip</button>
+            </div>
+        </section>
+
+        <!-- Logging Phase -->
+        <section id="logging-phase" class="phase hidden">
+            <!-- Stop ID Display -->
+            <div class="stop-display">
+                <div id="stop-tile" class="stop-tile">
+                    <span id="stop-label">R1</span>
                 </div>
             </div>
-        </div>
 
-        <!-- Data Table Section -->
+            <!-- Control Bar -->
+            <div class="control-bar">
+                <button id="skip-btn" class="btn btn-secondary btn-sm">Skip</button>
+                <button id="back-btn" class="btn btn-secondary btn-sm">Go Back</button>
+                <button id="reset-btn" class="btn btn-danger btn-sm">Reset Trip</button>
+            </div>
+
+            <!-- Stop Activity Form -->
+            <div class="card">
+                <h3>Stop Activity</h3>
+                
+                <div class="status-buttons">
+                    <button type="button" class="status-btn pickup-btn" data-status="picked-up">Stopped to pick up</button>
+                    <button type="button" class="status-btn pass-btn" data-status="passed">Passed without picking up</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes-input">Notes (optional)</label>
+                    <textarea id="notes-input" placeholder="Additional notes..." rows="2"></textarea>
+                </div>
+                
+                <button id="done-btn" class="btn btn-primary btn-large">Done</button>
+            </div>
+        </section>
+
+        <!-- Data Display Section -->
         <section id="data-section" class="card">
             <div class="section-header">
-                <h2>Collected Data</h2>
+                <h3>Trip Data</h3>
                 <div class="data-actions">
-                    <button id="export-btn" class="btn btn-outline">📤 Export</button>
-                    <button id="clear-btn" class="btn btn-danger">🗑️ Clear All</button>
+                    <button id="clear-all-btn" class="btn btn-danger btn-sm">Clear All</button>
+                    <button id="export-csv-btn" class="btn btn-outline btn-sm">CSV</button>
+                    <button id="export-json-btn" class="btn btn-outline btn-sm">JSON</button>
                 </div>
             </div>
             
@@ -102,10 +106,8 @@
                     <thead>
                         <tr>
                             <th>Time</th>
-                            <th>Route</th>
-                            <th>Plate</th>
                             <th>Stop</th>
-                            <th>Weather</th>
+                            <th>Status</th>
                             <th>Notes</th>
                             <th>Actions</th>
                         </tr>
@@ -117,64 +119,53 @@
             </div>
             
             <div id="no-data" class="no-data hidden">
-                <p>📝 No entries yet. Press ARRIVED when you reach a stop!</p>
+                <p>No entries yet</p>
             </div>
         </section>
     </div>
 
-    <!-- Edit Modal -->
+    <!-- Edit Entry Modal -->
     <div id="edit-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Edit Entry</h3>
-                <button id="close-edit" class="close-btn">✕</button>
+                <button id="close-edit-modal" class="close-btn">&times;</button>
             </div>
             
             <div class="form-group">
-                <label for="edit-timestamp">Timestamp</label>
-                <input type="datetime-local" id="edit-timestamp" step="1">
+                <label for="edit-stop-id">Stop ID</label>
+                <input type="text" id="edit-stop-id" readonly>
             </div>
             
             <div class="form-group">
-                <label for="edit-route">Route</label>
-                <select id="edit-route">
-                    <option value="Red">🔴 Red Line</option>
-                    <option value="Yellow">🟡 Yellow Line</option>
-                    <option value="Blue">🔵 Blue Line</option>
-                    <option value="Green">🟢 Green Line</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label for="edit-plate">Plate Number</label>
-                <input type="text" id="edit-plate">
-            </div>
-            
-            <div class="form-group">
-                <label for="edit-stop">Stop ID</label>
-                <input type="text" id="edit-stop">
-            </div>
-            
-            <div class="form-group">
-                <label for="edit-weather">Weather</label>
-                <select id="edit-weather">
-                    <option value="">Not specified</option>
-                    <option value="clear">☀️ Clear</option>
-                    <option value="cloudy">☁️ Cloudy</option>
-                    <option value="rain">🌧️ Rain</option>
-                    <option value="storm">⛈️ Storm</option>
-                    <option value="fog">🌫️ Fog</option>
+                <label for="edit-status">Status</label>
+                <select id="edit-status">
+                    <option value="picked-up">Stopped to pick up</option>
+                    <option value="passed">Passed without picking up</option>
                 </select>
             </div>
             
             <div class="form-group">
                 <label for="edit-notes">Notes</label>
-                <textarea id="edit-notes" rows="2"></textarea>
+                <textarea id="edit-notes" rows="3"></textarea>
             </div>
             
             <div class="modal-actions">
-                <button id="cancel-edit" class="btn btn-secondary">Cancel</button>
-                <button id="update-entry" class="btn btn-primary">Update</button>
+                <button id="delete-entry-btn" class="btn btn-danger">Delete</button>
+                <button id="cancel-edit-btn" class="btn btn-secondary">Cancel</button>
+                <button id="save-edit-btn" class="btn btn-primary">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirm-dialog" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="confirm-title">Confirm Action</h3>
+            <p id="confirm-message">Are you sure?</p>
+            <div class="modal-actions">
+                <button id="confirm-cancel" class="btn btn-secondary">Cancel</button>
+                <button id="confirm-ok" class="btn btn-primary">Confirm</button>
             </div>
         </div>
     </div>
