@@ -23,19 +23,14 @@
         <section id="setup" class="card">
             <h2>Trip Setup</h2>
             <div class="form-group">
-                <label for="route-picker">Route Color *</label>
-                <div class="scroll-picker" id="route-picker">
-                    <div class="picker-container">
-                        <div class="picker-overlay"></div>
-                        <div class="picker-list" id="route-list">
-                            <div class="picker-item" data-value="">Select Route</div>
-                            <div class="picker-item" data-value="Blue" data-color="#2196f3">� Blue Line</div>
-                            <div class="picker-item" data-value="Green" data-color="#4caf50">� Green Line</div>
-                            <div class="picker-item" data-value="Red" data-color="#f44336">� Red Line</div>
-                            <div class="picker-item" data-value="Yellow" data-color="#ffeb3b">� Yellow Line</div>
-                        </div>
-                    </div>
-                </div>
+                <label for="route-select">Route Color *</label>
+                <select id="route-select" required>
+                    <option value="">Select Route</option>
+                    <option value="Red" data-color="#f44336">🔴 Red Line</option>
+                    <option value="Yellow" data-color="#ffeb3b">🟡 Yellow Line</option>
+                    <option value="Blue" data-color="#2196f3">🔵 Blue Line</option>
+                    <option value="Green" data-color="#4caf50">🟢 Green Line</option>
+                </select>
             </div>
             
             <div class="form-group">
@@ -61,48 +56,21 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="stop-pickers">Stop ID *</label>
-                    <div class="dual-picker" id="stop-pickers">
-                        <div class="scroll-picker half-width" id="stop-letter-picker">
-                            <div class="picker-label">Letter</div>
-                            <div class="picker-container">
-                                <div class="picker-overlay"></div>
-                                <div class="picker-list" id="stop-letter-list">
-                                    <div class="picker-item" data-value="">-</div>
-                                    <div class="picker-item" data-value="B">B</div>
-                                    <div class="picker-item" data-value="G">G</div>
-                                    <div class="picker-item" data-value="R">R</div>
-                                    <div class="picker-item" data-value="Y">Y</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="scroll-picker half-width" id="stop-number-picker">
-                            <div class="picker-label">Number</div>
-                            <div class="picker-container">
-                                <div class="picker-overlay"></div>
-                                <div class="picker-list" id="stop-number-list">
-                                    <div class="picker-item" data-value="">-</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <label for="stop-input">Stop ID *</label>
+                    <input type="text" id="stop-input" placeholder="Enter or search stop ID" list="stop-suggestions">
+                    <datalist id="stop-suggestions"></datalist>
                 </div>
                 
                 <div class="form-group">
-                    <label for="weather-picker">Weather</label>
-                    <div class="scroll-picker" id="weather-picker">
-                        <div class="picker-container">
-                            <div class="picker-overlay"></div>
-                            <div class="picker-list" id="weather-list">
-                                <div class="picker-item" data-value="">Not specified</div>
-                                <div class="picker-item" data-value="clear">☀️ Clear</div>
-                                <div class="picker-item" data-value="cloudy">☁️ Cloudy</div>
-                                <div class="picker-item" data-value="fog">🌫️ Fog</div>
-                                <div class="picker-item" data-value="rain">🌧️ Rain</div>
-                                <div class="picker-item" data-value="storm">⛈️ Storm</div>
-                            </div>
-                        </div>
-                    </div>
+                    <label for="weather-select">Weather</label>
+                    <select id="weather-select">
+                        <option value="">Not specified</option>
+                        <option value="clear">☀️ Clear</option>
+                        <option value="cloudy">☁️ Cloudy</option>
+                        <option value="rain">🌧️ Rain</option>
+                        <option value="storm">⛈️ Storm</option>
+                        <option value="fog">🌫️ Fog</option>
+                    </select>
                 </div>
                 
                 <div class="form-group">
@@ -168,18 +136,13 @@
             </div>
             
             <div class="form-group">
-                <label for="edit-route-picker">Route</label>
-                <div class="scroll-picker" id="edit-route-picker">
-                    <div class="picker-container">
-                        <div class="picker-overlay"></div>
-                        <div class="picker-list" id="edit-route-list">
-                            <div class="picker-item" data-value="Blue">🔵 Blue Line</div>
-                            <div class="picker-item" data-value="Green">🟢 Green Line</div>
-                            <div class="picker-item" data-value="Red">🔴 Red Line</div>
-                            <div class="picker-item" data-value="Yellow">🟡 Yellow Line</div>
-                        </div>
-                    </div>
-                </div>
+                <label for="edit-route">Route</label>
+                <select id="edit-route">
+                    <option value="Red">🔴 Red Line</option>
+                    <option value="Yellow">🟡 Yellow Line</option>
+                    <option value="Blue">🔵 Blue Line</option>
+                    <option value="Green">🟢 Green Line</option>
+                </select>
             </div>
             
             <div class="form-group">
@@ -188,46 +151,20 @@
             </div>
             
             <div class="form-group">
-                <label for="edit-stop-pickers">Stop ID</label>
-                <div class="dual-picker" id="edit-stop-pickers">
-                    <div class="scroll-picker half-width" id="edit-stop-letter-picker">
-                        <div class="picker-label">Letter</div>
-                        <div class="picker-container">
-                            <div class="picker-overlay"></div>
-                            <div class="picker-list" id="edit-stop-letter-list">
-                                <div class="picker-item" data-value="B">B</div>
-                                <div class="picker-item" data-value="G">G</div>
-                                <div class="picker-item" data-value="R">R</div>
-                                <div class="picker-item" data-value="Y">Y</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="scroll-picker half-width" id="edit-stop-number-picker">
-                        <div class="picker-label">Number</div>
-                        <div class="picker-container">
-                            <div class="picker-overlay"></div>
-                            <div class="picker-list" id="edit-stop-number-list">
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <label for="edit-stop">Stop ID</label>
+                <input type="text" id="edit-stop">
             </div>
             
             <div class="form-group">
-                <label for="edit-weather-picker">Weather</label>
-                <div class="scroll-picker" id="edit-weather-picker">
-                    <div class="picker-container">
-                        <div class="picker-overlay"></div>
-                        <div class="picker-list" id="edit-weather-list">
-                            <div class="picker-item" data-value="">Not specified</div>
-                            <div class="picker-item" data-value="clear">☀️ Clear</div>
-                            <div class="picker-item" data-value="cloudy">☁️ Cloudy</div>
-                            <div class="picker-item" data-value="fog">🌫️ Fog</div>
-                            <div class="picker-item" data-value="rain">🌧️ Rain</div>
-                            <div class="picker-item" data-value="storm">⛈️ Storm</div>
-                        </div>
-                    </div>
-                </div>
+                <label for="edit-weather">Weather</label>
+                <select id="edit-weather">
+                    <option value="">Not specified</option>
+                    <option value="clear">☀️ Clear</option>
+                    <option value="cloudy">☁️ Cloudy</option>
+                    <option value="rain">🌧️ Rain</option>
+                    <option value="storm">⛈️ Storm</option>
+                    <option value="fog">🌫️ Fog</option>
+                </select>
             </div>
             
             <div class="form-group">
