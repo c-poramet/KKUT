@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thai Bus Route Logger</title>
+    <title>KKU Bus Route Logger</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2196F3">
@@ -12,7 +12,7 @@
     <div id="app">
         <!-- Header -->
         <header>
-            <h1>Bus Route Logger</h1>
+            <h1>KKU Bus</h1>
             <div class="status-bar">
                 <span id="current-time" class="time"></span>
                 <span id="trip-status" class="trip-info"></span>
@@ -25,14 +25,13 @@
                 <h2>Trip Setup</h2>
                 
                 <div class="form-group">
-                    <label for="route-select">Route Color *</label>
-                    <select id="route-select" required>
-                        <option value="">Select Route</option>
-                        <option value="Red">Red Line</option>
-                        <option value="Yellow">Yellow Line</option>
-                        <option value="Blue">Blue Line</option>
-                        <option value="Green">Green Line</option>
-                    </select>
+                    <label>Route Color *</label>
+                    <div class="route-buttons">
+                        <button type="button" class="route-btn route-Red" data-route="Red">Red</button>
+                        <button type="button" class="route-btn route-Yellow" data-route="Yellow">Yellow</button>
+                        <button type="button" class="route-btn route-Blue" data-route="Blue">Blue</button>
+                        <button type="button" class="route-btn route-Green" data-route="Green">Green</button>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -75,15 +74,9 @@
             <div class="card">
                 <h3>Stop Activity</h3>
                 
-                <div class="toggle-group">
-                    <label class="toggle-option">
-                        <input type="radio" name="stop-status" value="picked-up">
-                        <span class="toggle-label">Stopped to pick up</span>
-                    </label>
-                    <label class="toggle-option">
-                        <input type="radio" name="stop-status" value="passed">
-                        <span class="toggle-label">Passed without picking up</span>
-                    </label>
+                <div class="status-buttons">
+                    <button type="button" class="status-btn pickup-btn" data-status="picked-up">Stopped to pick up</button>
+                    <button type="button" class="status-btn pass-btn" data-status="passed">Passed without picking up</button>
                 </div>
                 
                 <div class="form-group">

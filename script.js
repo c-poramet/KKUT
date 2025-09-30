@@ -1,4 +1,4 @@
-// Thai Bus Route Logger
+// KKU Bus Route Logger
 // Developer tool for precise bus arrival data collection
 // Timezone: UTC+7 (Thailand)
 
@@ -26,9 +26,17 @@ class ThaiBusLogger {
 
     // Event Listeners
     setupEventListeners() {
-        // Setup Phase
-        document.getElementById('route-select').addEventListener('change', () => {
-            this.updateStartButton();
+        // Setup Phase - Route Buttons
+        document.querySelectorAll('.route-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Remove active class from all route buttons
+                document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+                // Update trip data with selected route
+                this.tripData.route = e.target.dataset.route;
+                this.updateStartButton();
+            });
         });
         
         document.getElementById('start-trip-btn').addEventListener('click', () => {
@@ -48,12 +56,21 @@ class ThaiBusLogger {
             this.confirmResetTrip();
         });
 
-        // Done Button
+        // Status buttons
+        document.querySelectorAll('.status-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Remove active class from all status buttons
+                document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                e.target.classList.add('active');
+            });
+        });
+        
         document.getElementById('done-btn').addEventListener('click', () => {
             this.logCurrentStop();
         });
 
-        // Data Export and Management
+        // Clear data
         document.getElementById('export-csv-btn').addEventListener('click', () => {
             this.exportCSV();
         });
@@ -164,24 +181,29 @@ class ThaiBusLogger {
     }
 
     updateStartButton() {
-        const route = document.getElementById('route-select').value;
-        const startBtn = document.getElementById('start-trip-btn');
-        
-        startBtn.disabled = !route;
+        const startButton = document.getElementById('start-trip-btn');
+        startButton.disabled = !this.tripData.route;
     }
 
     startTrip() {
-        const route = document.getElementById('route-select').value;
-        if (!route) return;
-
+        // Get form values
+        const plateValue = document.getElementById('plate-input').value.trim();
+        const weatherValue = document.getElementById('weather-select').value;
+        
+        if (!this.tripData.route) {
+            alert('Please select a route');
+            return;
+        }
+        
+        // Set trip data
         this.tripData = {
-            route: route,
-            plate: document.getElementById('plate-input').value.trim() || '',
-            weather: document.getElementById('weather-select').value || '',
+            route: this.tripData.route,
+            plate: plateValue,
+            weather: weatherValue,
             currentStop: 1,
             isActive: true
         };
-
+        
         this.saveToStorage();
         this.showLoggingPhase();
     }
@@ -226,9 +248,8 @@ class ThaiBusLogger {
     }
 
     clearStopForm() {
-        // Clear radio buttons
-        const radios = document.querySelectorAll('input[name="stop-status"]');
-        radios.forEach(radio => radio.checked = false);
+        // Clear status button selection
+        document.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('active'));
         
         // Clear notes
         document.getElementById('notes-input').value = '';
@@ -236,7 +257,7 @@ class ThaiBusLogger {
 
     // Entry Logging
     logCurrentStop() {
-        const stopStatus = document.querySelector('input[name="stop-status"]:checked');
+        const stopStatus = document.querySelector('.status-btn.active');
         
         if (!stopStatus) {
             alert('Please select stop status (picked up or passed)');
@@ -257,7 +278,7 @@ class ThaiBusLogger {
             stopId: currentStopLabel, // Use the exact stop label from UI
             stop: currentStopLabel,   // Ensure both stopId and stop fields are populated
             stopNumber: this.tripData.currentStop,
-            status: stopStatus.value,
+            status: stopStatus.dataset.status,
             weather: this.tripData.weather,
             notes: notes
         };
@@ -278,7 +299,7 @@ class ThaiBusLogger {
         this.renderTable();
         
         // Show brief success indication
-        this.showSuccessMessage(`${currentStopLabel} logged: ${stopStatus.value.replace('-', ' ')}`);
+        this.showSuccessMessage(`${currentStopLabel} logged: ${stopStatus.dataset.status.replace('-', ' ')}`);
     }
 
     // UI Feedback
@@ -351,8 +372,10 @@ class ThaiBusLogger {
             isActive: false
         };
         
+        // Reset route buttons
+        document.querySelectorAll('.route-btn').forEach(btn => btn.classList.remove('active'));
+        
         // Reset form
-        document.getElementById('route-select').value = '';
         document.getElementById('plate-input').value = '';
         document.getElementById('weather-select').value = '';
         
@@ -412,8 +435,6 @@ class ThaiBusLogger {
             `;
         }).join('');
     }
-
-
 
     // Entry Management
     editEntry(id) {
@@ -578,10 +599,8 @@ class ThaiBusLogger {
         }).replace(/\//g, '-');
         
         const route = this.tripData.route || 'unknown';
-        return `thai-bus-${route.toLowerCase()}-${thaiDate}.${extension}`;
+        return `kku-bus-${route.toLowerCase()}-${thaiDate}.${extension}`;
     }
-
-
 
     downloadFile(content, filename, mimeType) {
         const blob = new Blob([content], { type: mimeType });
@@ -601,8 +620,8 @@ class ThaiBusLogger {
     // Storage Management
     saveToStorage() {
         try {
-            localStorage.setItem('thaiBusEntries', JSON.stringify(this.entries));
-            localStorage.setItem('thaiBusTripData', JSON.stringify(this.tripData));
+            localStorage.setItem('kkuBusEntries', JSON.stringify(this.entries));
+            localStorage.setItem('kkuBusTripData', JSON.stringify(this.tripData));
         } catch (e) {
             console.error('Failed to save to storage:', e);
             alert('Warning: Failed to save data locally');
@@ -612,26 +631,34 @@ class ThaiBusLogger {
     loadFromStorage() {
         try {
             // Load entries
-            const entries = localStorage.getItem('thaiBusEntries');
+            const entries = localStorage.getItem('kkuBusEntries') || localStorage.getItem('thaiBusEntries');
             if (entries) {
                 this.entries = JSON.parse(entries);
             }
             
             // Load trip data
-            const tripData = localStorage.getItem('thaiBusTripData');
+            const tripData = localStorage.getItem('kkuBusTripData') || localStorage.getItem('thaiBusTripData');
             if (tripData) {
                 const saved = JSON.parse(tripData);
                 this.tripData = { ...this.tripData, ...saved };
                 
+                // If a route was previously selected, mark the button as active
+                if (this.tripData.route) {
+                    setTimeout(() => {
+                        const routeBtn = document.querySelector(`.route-btn.route-${this.tripData.route}`);
+                        if (routeBtn) {
+                            routeBtn.classList.add('active');
+                        }
+                    }, 100);
+                }
+                
                 // Restore setup form if trip is active
                 if (this.tripData.isActive) {
-                    document.getElementById('route-select').value = this.tripData.route;
                     document.getElementById('plate-input').value = this.tripData.plate;
                     document.getElementById('weather-select').value = this.tripData.weather;
                     this.showLoggingPhase();
                 } else {
                     // Restore setup form values but stay in setup phase
-                    document.getElementById('route-select').value = this.tripData.route || '';
                     document.getElementById('plate-input').value = this.tripData.plate || '';
                     document.getElementById('weather-select').value = this.tripData.weather || '';
                 }
@@ -650,7 +677,7 @@ class ThaiBusLogger {
     }
 }
 
-// Initialize Thai Bus Logger
+// Initialize KKU Bus Logger
 let app;
 document.addEventListener('DOMContentLoaded', () => {
     app = new ThaiBusLogger();
