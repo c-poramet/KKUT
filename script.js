@@ -55,6 +55,38 @@ class ThaiBusLogger {
         document.getElementById('reset-btn').addEventListener('click', () => {
             this.confirmResetTrip();
         });
+        
+        // Custom Stop Button
+        document.getElementById('custom-stop-btn').addEventListener('click', () => {
+            this.showCustomStopModal();
+        });
+        
+        // Custom Stop Modal
+        document.getElementById('close-custom-stop-modal').addEventListener('click', () => {
+            this.hideCustomStopModal();
+        });
+        
+        document.getElementById('cancel-custom-stop-btn').addEventListener('click', () => {
+            this.hideCustomStopModal();
+        });
+        
+        document.getElementById('confirm-custom-stop-btn').addEventListener('click', () => {
+            this.setCustomStop();
+        });
+        
+        // When Enter key is pressed in the custom stop input
+        document.getElementById('custom-stop-input').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                this.setCustomStop();
+            }
+        });
+        
+        // Close modal when clicked outside
+        document.getElementById('custom-stop-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.hideCustomStopModal();
+            }
+        });
 
         // Status buttons
         document.querySelectorAll('.status-btn').forEach(btn => {
@@ -236,6 +268,39 @@ class ThaiBusLogger {
         this.clearStopForm();
         this.saveToStorage();
     }
+    
+    showCustomStopModal() {
+        const modal = document.getElementById('custom-stop-modal');
+        const input = document.getElementById('custom-stop-input');
+        modal.classList.remove('hidden');
+        input.value = this.tripData.currentStop;
+        // Set focus and select the input text for easy editing
+        setTimeout(() => {
+            input.focus();
+            input.select();
+        }, 100);
+    }
+    
+    hideCustomStopModal() {
+        document.getElementById('custom-stop-modal').classList.add('hidden');
+    }
+    
+    setCustomStop() {
+        const input = document.getElementById('custom-stop-input');
+        const stopNumber = parseInt(input.value, 10);
+        
+        if (isNaN(stopNumber) || stopNumber < 1) {
+            this.showSuccessMessage('Please enter a valid stop number', 'error');
+            return;
+        }
+        
+        this.tripData.currentStop = stopNumber;
+        this.updateStopTile();
+        this.updateTripStatus(`${this.tripData.route} Line - Stop ${this.tripData.currentStop}`);
+        this.saveToStorage();
+        this.hideCustomStopModal();
+        this.showSuccessMessage(`Stop set to ${stopNumber}`);
+    }
 
     goBackStop() {
         if (this.tripData.currentStop > 1) {
@@ -303,14 +368,18 @@ class ThaiBusLogger {
     }
 
     // UI Feedback
-    showSuccessMessage(message) {
+    showSuccessMessage(message, type = 'success') {
         const notification = document.createElement('div');
+        
+        // Set background color based on message type
+        const bgColor = type === 'error' ? '#dc3545' : '#28a745';
+        
         notification.style.cssText = `
             position: fixed;
             top: 80px;
             left: 50%;
             transform: translateX(-50%);
-            background: #28a745;
+            background: ${bgColor};
             color: white;
             padding: 0.6rem 1rem;
             border-radius: 6px;
