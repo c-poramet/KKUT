@@ -53,13 +53,34 @@ class ThaiBusLogger {
             this.logCurrentStop();
         });
 
-        // Data Export
+        // Data Export and Management
         document.getElementById('export-csv-btn').addEventListener('click', () => {
             this.exportCSV();
         });
         
         document.getElementById('export-json-btn').addEventListener('click', () => {
             this.exportJSON();
+        });
+        
+        document.getElementById('clear-all-btn').addEventListener('click', () => {
+            this.confirmClearAll();
+        });
+
+        // Edit Modal
+        document.getElementById('close-edit-modal').addEventListener('click', () => {
+            this.hideEditModal();
+        });
+        
+        document.getElementById('cancel-edit-btn').addEventListener('click', () => {
+            this.hideEditModal();
+        });
+        
+        document.getElementById('save-edit-btn').addEventListener('click', () => {
+            this.saveEditedEntry();
+        });
+        
+        document.getElementById('delete-entry-btn').addEventListener('click', () => {
+            this.confirmDeleteEntry();
         });
 
         // Confirmation Dialog
@@ -75,6 +96,12 @@ class ThaiBusLogger {
         document.getElementById('confirm-dialog').addEventListener('click', (e) => {
             if (e.target === e.currentTarget) {
                 this.hideConfirmDialog();
+            }
+        });
+        
+        document.getElementById('edit-modal').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                this.hideEditModal();
             }
         });
     }
@@ -129,6 +156,7 @@ class ThaiBusLogger {
         document.getElementById('logging-phase').classList.remove('hidden');
         this.updateTripStatus(`${this.tripData.route} Line - Stop ${this.tripData.currentStop}`);
         this.updateStopTile();
+        this.renderTable(); // Ensure data table is visible
     }
 
     updateTripStatus(text) {
@@ -295,10 +323,13 @@ class ThaiBusLogger {
         this.hideConfirmDialog();
 
         if (confirmed) {
-            switch (action) {
-                case 'reset-trip':
-                    this.resetTrip();
-                    break;
+            if (action === 'reset-trip') {
+                this.resetTrip();
+            } else if (action === 'clear-all-data') {
+                this.clearAllData();
+            } else if (action.startsWith('delete-entry-')) {
+                const id = action.replace('delete-entry-', '');
+                this.deleteEntry(id);
             }
         }
     }
@@ -362,8 +393,11 @@ class ThaiBusLogger {
                     <td><span class="${statusClass}">${statusText}</span></td>
                     <td class="notes-cell" title="${entry.notes || ''}">${entry.notes || ''}</td>
                     <td>
-                        <button class="edit-btn" onclick="app.editEntry('${entry.id}')" title="Edit">
-                            Edit
+                        <button class="edit-btn" onclick="app.editEntry('${entry.id}')" title="Edit Entry">
+                            ✏️
+                        </button>
+                        <button class="edit-btn" onclick="app.deleteEntryQuick('${entry.id}')" title="Delete Entry" style="color: #dc3545; margin-left: 4px;">
+                            🗑️
                         </button>
                     </td>
                 </tr>
@@ -426,14 +460,89 @@ class ThaiBusLogger {
         const entry = this.entries.find(e => e.id == id);
         if (!entry) return;
         
-        // Simple prompt-based editing
-        const newNotes = prompt('Edit notes:', entry.notes);
-        if (newNotes !== null) {
-            entry.notes = newNotes.trim();
-            this.saveToStorage();
-            this.renderTable();
-            this.showSuccessMessage('Entry updated');
+        // Populate edit form
+        document.getElementById('edit-stop-id').value = entry.stopId || '';
+        document.getElementById('edit-status').value = entry.status;
+        document.getElementById('edit-notes').value = entry.notes || '';
+        
+        // Store current editing ID
+        this.currentEditId = id;
+        
+        // Show edit modal
+        this.showEditModal();
+    }
+    
+    showEditModal() {
+        document.getElementById('edit-modal').classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    
+    hideEditModal() {
+        document.getElementById('edit-modal').classList.add('hidden');
+        document.body.style.overflow = '';
+        this.currentEditId = null;
+    }
+    
+    saveEditedEntry() {
+        if (!this.currentEditId) return;
+        
+        const entry = this.entries.find(e => e.id == this.currentEditId);
+        if (!entry) return;
+        
+        // Update entry
+        entry.status = document.getElementById('edit-status').value;
+        entry.notes = document.getElementById('edit-notes').value.trim();
+        
+        this.saveToStorage();
+        this.renderTable();
+        this.hideEditModal();
+        this.showSuccessMessage('Entry updated successfully');
+    }
+    
+    deleteEntryQuick(id) {
+        this.showConfirmDialog(
+            'Delete Entry',
+            'Are you sure you want to delete this entry? This action cannot be undone.',
+            `delete-entry-${id}`
+        );
+    }
+    
+    confirmDeleteEntry() {
+        if (!this.currentEditId) return;
+        
+        this.showConfirmDialog(
+            'Delete Entry',
+            'Are you sure you want to delete this entry? This action cannot be undone.',
+            `delete-entry-${this.currentEditId}`
+        );
+    }
+    
+    deleteEntry(id) {
+        this.entries = this.entries.filter(e => e.id != id);
+        this.saveToStorage();
+        this.renderTable();
+        this.hideEditModal();
+        this.showSuccessMessage('Entry deleted successfully');
+    }
+    
+    confirmClearAll() {
+        if (this.entries.length === 0) {
+            alert('No data to clear');
+            return;
         }
+        
+        this.showConfirmDialog(
+            'Clear All Data',
+            `This will delete all ${this.entries.length} entries permanently. This action cannot be undone.`,
+            'clear-all-data'
+        );
+    }
+    
+    clearAllData() {
+        this.entries = [];
+        this.saveToStorage();
+        this.renderTable();
+        this.showSuccessMessage('All data cleared successfully');
     }
 
     // Data Export

@@ -300,8 +300,46 @@ header h1 {
     border-radius: 8px;
     padding: 1.2rem;
     width: 100%;
-    max-width: 320px;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 0.5rem;
+}
+
+.modal-header h3 {
+    color: #333;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.close-btn:hover {
+    background: #f8f9fa;
+    color: #333;
 }
 
 .modal-content h3 {
@@ -322,6 +360,7 @@ header h1 {
     display: flex;
     gap: 0.8rem;
     justify-content: flex-end;
+    margin-top: 1.2rem;
 }
 
 .modal-actions .btn {
